@@ -10,9 +10,13 @@ db.init_tables()
 
 @app.route('/create-room', methods=['POST'])
 def create_room_route():
-    # Expecting: {"room": "name", "user": "linux_username"}
+    # Expecting: {"room": "name", "user": "linux_username", "password": "optional_password"}
     data = request.json
-    success = room.create_room(data['room'], data['user'])
+    room_name = data.get('room')
+    user = data.get('user')
+    password = data.get('password', '')
+    
+    success = room.create_room(room_name, user, password)
     return jsonify({"status": "success" if success else "failed"}), 201
 
 @app.route('/delete-room', methods=['POST'])
@@ -24,18 +28,31 @@ def delete_room_route():
 
 @app.route('/send', methods=['POST'])
 def send_message_route():
+    # Expecting: {"room": "name", "user": "linux_username", "content": "msg", "password": "..."}
     data = request.get_json()
     if not data or 'room' not in data or 'user' not in data or 'content' not in data:
         return jsonify({"status": "failed", "message": "Missing parameters"}), 400
     
-    success = connection.save_message(data['room'], data['user'], data['content'])
-    return jsonify({"status": "success" if success else "failed"}), 201
+    password = data.get('password', '')
+    
+    # Validasi akses room sebelum simpan pesan
+    if room.verify_password(data['room'], password):
+        success = connection.save_message(data['room'], data['user'], data['content'])
+        return jsonify({"status": "success" if success else "failed"}), 201
+    else:
+        return jsonify({"status": "failed", "message": "Invalid password"}), 403
 
 @app.route('/messages/<room_name>', methods=['GET'])
 def get_messages_route(room_name):
-    msgs = connection.get_messages(room_name)
-    return jsonify(msgs), 200
+    # Password dikirim via JSON di body request (untuk GET, gunakan header atau query)
+    # Di sini kita ambil dari parameter 'password'
+    password = request.args.get('password', '')
+    
+    if room.verify_password(room_name, password):
+        msgs = connection.get_messages(room_name)
+        return jsonify(msgs), 200
+    else:
+        return jsonify({"status": "failed", "message": "Invalid password"}), 403
 
 if __name__ == '__main__':
-    # Running the server
     app.run(host='0.0.0.0', port=8080)
