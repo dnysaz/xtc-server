@@ -31,12 +31,14 @@ def verify_room_route():
     room_name = data.get('room')
     password = data.get('password', '')
     
-    # Jika room diproteksi, verifikasi password
     if room.is_password_protected(room_name):
         if room.verify_password(room_name, password):
             return jsonify({"status": "success"}), 200
         else:
+            # Hanya kembalikan 403 jika memang ada password dan salah
             return jsonify({"status": "failed", "message": "wrong_password"}), 403
+    
+    # Jika room publik, langsung terima
     return jsonify({"status": "success"}), 200
 
 @app.route('/send', methods=['POST'])
