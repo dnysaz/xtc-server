@@ -66,3 +66,17 @@ def delete_room(name, requester):
         conn.close()
     
     return False
+
+
+def is_password_protected(name):
+    """Mengecek apakah room memiliki password (bukan string kosong)."""
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT password FROM rooms WHERE name = ?", (name,))
+        row = cursor.fetchone()
+        return row is not None and row['password'] != ""
+    except:
+        return False
+    finally:
+        conn.close()
