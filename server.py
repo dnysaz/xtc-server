@@ -44,8 +44,6 @@ def send_message_route():
 
 @app.route('/messages/<room_name>', methods=['GET'])
 def get_messages_route(room_name):
-    # Password dikirim via JSON di body request (untuk GET, gunakan header atau query)
-    # Di sini kita ambil dari parameter 'password'
     password = request.args.get('password', '')
     
     if room.verify_password(room_name, password):
