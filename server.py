@@ -24,6 +24,21 @@ def delete_room_route():
     success = room.delete_room(data.get('room'), data.get('user'))
     return jsonify({"status": "success" if success else "failed"}), 200
 
+# Endpoint baru untuk handshake password agar lebih stabil
+@app.route('/verify-room', methods=['POST'])
+def verify_room_route():
+    data = request.json
+    room_name = data.get('room')
+    password = data.get('password', '')
+    
+    # Jika room diproteksi, verifikasi password
+    if room.is_password_protected(room_name):
+        if room.verify_password(room_name, password):
+            return jsonify({"status": "success"}), 200
+        else:
+            return jsonify({"status": "failed", "message": "wrong_password"}), 403
+    return jsonify({"status": "success"}), 200
+
 @app.route('/send', methods=['POST'])
 def send_message_route():
     data = request.get_json()
