@@ -1,27 +1,30 @@
 from db import get_db_connection
 from werkzeug.security import generate_password_hash, check_password_hash
+import sqlite3
 
 def create_room(name, creator, password=""):
     """Membuat room baru dengan password yang di-hash."""
     conn = get_db_connection()
-    # Hash password jika ada, jika tidak, simpan sebagai string kosong
     hashed_pw = generate_password_hash(password) if password else ""
     
     try:
-        # Asumsi: Kamu harus menambahkan kolom 'password' di tabel 'rooms' via db.py
         conn.execute(
             "INSERT INTO rooms (name, creator, password) VALUES (?, ?, ?)", 
             (name, creator, hashed_pw)
         )
         conn.commit()
         return True
-    except:
+    except sqlite3.IntegrityError:
+        # Menangani kasus jika room name sudah ada (karena UNIQUE constraint)
+        return False
+    except Exception as e:
+        print(f"Error creating room: {e}")
         return False
     finally:
         conn.close()
 
 def verify_password(name, password):
-    """Memverifikasi password room."""
+    """Memverifikasi password room (True jika publik atau password benar)."""
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
@@ -30,13 +33,14 @@ def verify_password(name, password):
         
         if row:
             stored_pw = row['password']
-            # Jika tidak ada password, anggap room public (return True)
+            # Jika database menyimpan string kosong, anggap room bersifat publik
             if not stored_pw:
                 return True
-            # Verifikasi hash
+            # Verifikasi password dengan hash yang tersimpan
             return check_password_hash(stored_pw, password)
         return False
-    except:
+    except Exception as e:
+        print(f"Error verifying password: {e}")
         return False
     finally:
         conn.close()
@@ -50,11 +54,13 @@ def delete_room(name, requester):
         row = cursor.fetchone()
         
         if row and row['creator'] == requester:
-            conn.execute("DELETE FROM messages WHERE room = ?", (name,))
-            conn.execute("DELETE FROM rooms WHERE name = ?", (name,))
-            conn.commit()
+            # Gunakan transaksi untuk memastikan kedua operasi berhasil atau gagal bersamaan
+            with conn:
+                conn.execute("DELETE FROM messages WHERE room = ?", (name,))
+                conn.execute("DELETE FROM rooms WHERE name = ?", (name,))
             return True
-    except:
+    except Exception as e:
+        print(f"Error deleting room: {e}")
         return False
     finally:
         conn.close()
