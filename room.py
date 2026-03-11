@@ -2,6 +2,21 @@ from db import get_db_connection
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 
+def get_all_rooms():
+    """Mengambil semua daftar room dari database."""
+    conn = get_db_connection()
+    try:
+        # Menggunakan Row factory agar bisa diakses seperti dictionary
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, password FROM rooms")
+        return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        print(f"Error fetching all rooms: {e}")
+        return []
+    finally:
+        conn.close()
+
 def room_exists(name):
     """Mengecek apakah room ada di database."""
     conn = get_db_connection()

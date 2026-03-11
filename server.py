@@ -21,6 +21,29 @@ def index():
         "version": "1.0"
     }), 200
 
+# --- ROUTE BARU: LIST PUBLIC ROOMS ---
+@app.route('/rooms', methods=['GET'])
+def list_rooms_route():
+    """Mengambil semua room yang tidak memiliki password (Public)."""
+    try:
+        # Mengambil data dari modul room
+        all_rooms_data = room.get_all_rooms() 
+        
+        # Filter hanya yang password-nya kosong atau None
+        public_rooms = [
+            {"name": r['name']} 
+            for r in all_rooms_data 
+            if not r.get('password')
+        ]
+        
+        return jsonify({
+            "status": "success",
+            "rooms": public_rooms,
+            "count": len(public_rooms)
+        }), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/create-room', methods=['POST'])
 def create_room_route():
     data = request.json
@@ -44,8 +67,6 @@ def verify_room_route():
     room_name = data.get('room')
     password = data.get('password', '')
 
-    # --- VALIDASI KEBERADAAN ROOM ---
-    # Jika room tidak ditemukan di DB, kirim 404
     if not room.room_exists(room_name):
         return jsonify({"status": "failed", "message": "room_not_found"}), 404
 
@@ -62,7 +83,6 @@ def send_message_route():
     room_name = data.get('room')
     password = data.get('password', '')
     
-    # Cek room dulu sebelum kirim pesan
     if not room.room_exists(room_name):
         return jsonify({"status": "failed", "message": "room_not_found"}), 404
 
@@ -73,7 +93,6 @@ def send_message_route():
 
 @app.route('/messages/<room_name>', methods=['GET'])
 def get_messages_route(room_name):
-    # --- VALIDASI KEBERADAAN ROOM ---
     if not room.room_exists(room_name):
         return jsonify({"status": "failed", "message": "room_not_found"}), 404
 
@@ -85,6 +104,7 @@ def get_messages_route(room_name):
     msgs = connection.get_messages(room_name)
     return jsonify(msgs), 200
 
+# --- BACKGROUND PROCESS LOGIC ---
 def start_server():
     if os.path.exists(PID_FILE):
         print("[!] Server is already running or pid file exists.")
