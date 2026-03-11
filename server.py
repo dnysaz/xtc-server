@@ -1,9 +1,14 @@
+import sys
+import os
+import signal
+import subprocess
 from flask import Flask, request, jsonify
 import db
 import room
 import connection
 
 app = Flask(__name__)
+PID_FILE = "server.pid"
 
 # Initialize database tables on startup
 db.init_tables()
@@ -11,63 +16,77 @@ db.init_tables()
 @app.route('/create-room', methods=['POST'])
 def create_room_route():
     data = request.json
-    room_name = data.get('room')
-    user = data.get('user')
-    password = data.get('password', '')
-    
-    success = room.create_room(room_name, user, password)
+    success = room.create_room(data.get('room'), data.get('user'), data.get('password', ''))
     return jsonify({"status": "success" if success else "failed"}), 201
 
-@app.route('/delete-room', methods=['POST'])
-def delete_room_route():
-    data = request.json
-    success = room.delete_room(data.get('room'), data.get('user'))
-    return jsonify({"status": "success" if success else "failed"}), 200
-
-# Endpoint baru untuk handshake password agar lebih stabil
 @app.route('/verify-room', methods=['POST'])
 def verify_room_route():
     data = request.json
     room_name = data.get('room')
     password = data.get('password', '')
-    
     if room.is_password_protected(room_name):
         if room.verify_password(room_name, password):
             return jsonify({"status": "success"}), 200
-        else:
-            # Hanya kembalikan 403 jika memang ada password dan salah
-            return jsonify({"status": "failed", "message": "wrong_password"}), 403
-    
-    # Jika room publik, langsung terima
+        return jsonify({"status": "failed", "message": "wrong_password"}), 403
     return jsonify({"status": "success"}), 200
 
 @app.route('/send', methods=['POST'])
 def send_message_route():
     data = request.get_json()
-    if not data or 'room' not in data or 'user' not in data or 'content' not in data:
-        return jsonify({"status": "failed", "message": "Missing parameters"}), 400
-    
     password = data.get('password', '')
-    
-    # Validasi akses room sebelum simpan pesan
     if room.verify_password(data['room'], password):
         success = connection.save_message(data['room'], data['user'], data['content'])
         return jsonify({"status": "success" if success else "failed"}), 201
-    else:
-        return jsonify({"status": "failed", "message": "Invalid password"}), 403
+    return jsonify({"status": "failed", "message": "Invalid password"}), 403
 
 @app.route('/messages/<room_name>', methods=['GET'])
 def get_messages_route(room_name):
     password = request.args.get('password', '')
-    
-    # Cek apakah room terkunci
     if room.is_password_protected(room_name):
-        # Jika terkunci dan password salah/kosong, kirim 401
         if not room.verify_password(room_name, password):
             return jsonify({"status": "failed", "message": "password_required"}), 401
-    
     msgs = connection.get_messages(room_name)
     return jsonify(msgs), 200
 
+def start_server():
+    if os.path.exists(PID_FILE):
+        print("[!] Server is already running or pid file exists.")
+        return
+
+    # Menjalankan proses baru di background menggunakan nohup
+    # stdout dan stderr dialihkan ke server.log
+    cmd = [sys.executable, "server.py", "run_internal"]
+    with open("server.log", "a") as log:
+        process = subprocess.Popen(cmd, stdout=log, stderr=log, preexec_fn=os.setpgrp)
+        with open(PID_FILE, "w") as f:
+            f.write(str(process.pid))
+    print(f"[*] Server started in background (PID: {process.pid})")
+    print("[*] Logs: tail -f server.log")
+
+def stop_server():
+    if not os.path.exists(PID_FILE):
+        print("[!] Server is not running.")
+        return
+    with open(PID_FILE, "r") as f:
+        pid = int(f.read())
+    try:
+        os.kill(pid, signal.SIGTERM)
+        os.remove(PID_FILE)
+        print(f"[*] Server (PID: {pid}) stopped successfully.")
+    except ProcessLookupError:
+        os.remove(PID_FILE)
+        print("[!] PID file found but process not active. Cleaned up.")
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    if len(sys.argv) > 1:
+        command = sys.argv[1]
+        if command == "start":
+            start_server()
+        elif command == "stop":
+            stop_server()
+        elif command == "run_internal":
+            # Ini dijalankan oleh subprocess di background
+            app.run(host='0.0.0.0', port=8080, debug=False)
+    else:
+        # Jalankan normal jika tanpa argumen (foreground)
+        app.run(host='0.0.0.0', port=8080)
