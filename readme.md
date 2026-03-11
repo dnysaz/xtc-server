@@ -42,16 +42,6 @@ chmod +x xtc
 # Optional: Add to PATH
 export PATH=$PATH:$(pwd)
 ```
-
-### Server Setup
-```bash
-# On your Ubuntu server
-python3 server.py --host 0.0.0.0 --port 5000
-
-# The server will initialize SQLite database automatically
-# Default endpoint: http://your-server-ip:5000
-```
-
 ---
 
 ## USAGE EXAMPLES
@@ -60,14 +50,14 @@ Run these commands from your Mac/Linux terminal:
 
 ### 1. Networking & Sync
 ```bash
-# Connect to your remote server
-xtc connect @145.79.12.100
+# Connect to your remote server (example ip)
+xtc connect @123.123.123.123:8080
 
 # Run a diagnostic check
 xtc status
 
 # Terminate connection & wipe local config
-xtc disconnect
+xtc disconnect @123.123.123.123:8080
 ```
 
 ### 2. Room Management
