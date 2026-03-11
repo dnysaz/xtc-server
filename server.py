@@ -16,16 +16,17 @@ db.init_tables()
 @app.route('/create-room', methods=['POST'])
 def create_room_route():
     data = request.json
-    success = room.create_room(data.get('room'), data.get('user'), data.get('password', ''))
+    room_name = data.get('room')
+    user = data.get('user')
+    password = data.get('password', '')
+    success = room.create_room(room_name, user, password)
     return jsonify({"status": "success" if success else "failed"}), 201
 
-# --- TAMBAHAN ROUTE DELETE ROOM ---
 @app.route('/delete-room', methods=['POST'])
 def delete_room_route():
     data = request.json
     room_name = data.get('room')
     user = data.get('user')
-    # Pastikan fungsi room.delete_room sudah ada di file room.py kamu
     success = room.delete_room(room_name, user)
     return jsonify({"status": "success" if success else "failed"}), 200
 
@@ -34,27 +35,45 @@ def verify_room_route():
     data = request.json
     room_name = data.get('room')
     password = data.get('password', '')
+
+    # --- VALIDASI KEBERADAAN ROOM ---
+    # Jika room tidak ditemukan di DB, kirim 404
+    if not room.room_exists(room_name):
+        return jsonify({"status": "failed", "message": "room_not_found"}), 404
+
     if room.is_password_protected(room_name):
         if room.verify_password(room_name, password):
             return jsonify({"status": "success"}), 200
         return jsonify({"status": "failed", "message": "wrong_password"}), 403
+    
     return jsonify({"status": "success"}), 200
 
 @app.route('/send', methods=['POST'])
 def send_message_route():
     data = request.get_json()
+    room_name = data.get('room')
     password = data.get('password', '')
-    if room.verify_password(data['room'], password):
-        success = connection.save_message(data['room'], data['user'], data['content'])
+    
+    # Cek room dulu sebelum kirim pesan
+    if not room.room_exists(room_name):
+        return jsonify({"status": "failed", "message": "room_not_found"}), 404
+
+    if room.verify_password(room_name, password):
+        success = connection.save_message(room_name, data['user'], data['content'])
         return jsonify({"status": "success" if success else "failed"}), 201
     return jsonify({"status": "failed", "message": "Invalid password"}), 403
 
 @app.route('/messages/<room_name>', methods=['GET'])
 def get_messages_route(room_name):
+    # --- VALIDASI KEBERADAAN ROOM ---
+    if not room.room_exists(room_name):
+        return jsonify({"status": "failed", "message": "room_not_found"}), 404
+
     password = request.args.get('password', '')
     if room.is_password_protected(room_name):
         if not room.verify_password(room_name, password):
             return jsonify({"status": "failed", "message": "password_required"}), 401
+    
     msgs = connection.get_messages(room_name)
     return jsonify(msgs), 200
 
