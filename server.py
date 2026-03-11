@@ -13,6 +13,14 @@ PID_FILE = "server.pid"
 # Initialize database tables on startup
 db.init_tables()
 
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({
+        "status": "online",
+        "service": "XtermChat Gateway",
+        "version": "1.0"
+    }), 200
+
 @app.route('/create-room', methods=['POST'])
 def create_room_route():
     data = request.json
