@@ -1,0 +1,26 @@
+# --- Python Trash ---
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# --- OS Specific (Mac/Linux) ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --- XtermChat Specific ---
+*.pid
+*.log
+database.db
+uploads/
+
+# --- IDE & Config ---
+.vscode/
+.idea/
+.env
+config.json
