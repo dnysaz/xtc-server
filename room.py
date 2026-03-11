@@ -2,6 +2,19 @@ from db import get_db_connection
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 
+def room_exists(name):
+    """Mengecek apakah room ada di database."""
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM rooms WHERE name = ?", (name,))
+        return cursor.fetchone() is not None
+    except Exception as e:
+        print(f"Error checking room existence: {e}")
+        return False
+    finally:
+        conn.close()
+
 def create_room(name, creator, password=""):
     """Membuat room baru dengan password yang di-hash."""
     conn = get_db_connection()
@@ -15,7 +28,6 @@ def create_room(name, creator, password=""):
         conn.commit()
         return True
     except sqlite3.IntegrityError:
-        # Menangani kasus jika room name sudah ada (karena UNIQUE constraint)
         return False
     except Exception as e:
         print(f"Error creating room: {e}")
@@ -33,10 +45,8 @@ def verify_password(name, password):
         
         if row:
             stored_pw = row['password']
-            # Jika database menyimpan string kosong, anggap room bersifat publik
             if not stored_pw:
                 return True
-            # Verifikasi password dengan hash yang tersimpan
             return check_password_hash(stored_pw, password)
         return False
     except Exception as e:
@@ -54,7 +64,6 @@ def delete_room(name, requester):
         row = cursor.fetchone()
         
         if row and row['creator'] == requester:
-            # Gunakan transaksi untuk memastikan kedua operasi berhasil atau gagal bersamaan
             with conn:
                 conn.execute("DELETE FROM messages WHERE room = ?", (name,))
                 conn.execute("DELETE FROM rooms WHERE name = ?", (name,))
@@ -66,7 +75,6 @@ def delete_room(name, requester):
         conn.close()
     
     return False
-
 
 def is_password_protected(name):
     """Mengecek apakah room memiliki password (bukan string kosong)."""
