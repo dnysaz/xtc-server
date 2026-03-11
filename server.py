@@ -19,6 +19,16 @@ def create_room_route():
     success = room.create_room(data.get('room'), data.get('user'), data.get('password', ''))
     return jsonify({"status": "success" if success else "failed"}), 201
 
+# --- TAMBAHAN ROUTE DELETE ROOM ---
+@app.route('/delete-room', methods=['POST'])
+def delete_room_route():
+    data = request.json
+    room_name = data.get('room')
+    user = data.get('user')
+    # Pastikan fungsi room.delete_room sudah ada di file room.py kamu
+    success = room.delete_room(room_name, user)
+    return jsonify({"status": "success" if success else "failed"}), 200
+
 @app.route('/verify-room', methods=['POST'])
 def verify_room_route():
     data = request.json
@@ -52,9 +62,6 @@ def start_server():
     if os.path.exists(PID_FILE):
         print("[!] Server is already running or pid file exists.")
         return
-
-    # Menjalankan proses baru di background menggunakan nohup
-    # stdout dan stderr dialihkan ke server.log
     cmd = [sys.executable, "server.py", "run_internal"]
     with open("server.log", "a") as log:
         process = subprocess.Popen(cmd, stdout=log, stderr=log, preexec_fn=os.setpgrp)
@@ -85,8 +92,6 @@ if __name__ == '__main__':
         elif command == "stop":
             stop_server()
         elif command == "run_internal":
-            # Ini dijalankan oleh subprocess di background
             app.run(host='0.0.0.0', port=8080, debug=False)
     else:
-        # Jalankan normal jika tanpa argumen (foreground)
         app.run(host='0.0.0.0', port=8080)
