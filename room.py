@@ -3,14 +3,22 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 
 def get_all_rooms():
-    """Mengambil semua daftar room dari database."""
+    """Mengambil semua daftar room dari database dengan flag password."""
     conn = get_db_connection()
     try:
-        # Menggunakan Row factory agar bisa diakses seperti dictionary
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT name, password FROM rooms")
-        return [dict(row) for row in cursor.fetchall()]
+        rows = cursor.fetchall()
+        
+        rooms = []
+        for row in rows:
+            # Jika password ada isinya dan bukan string kosong, has_password = True
+            rooms.append({
+                "name": row['name'],
+                "has_password": True if row['password'] and row['password'].strip() != "" else False
+            })
+        return rooms
     except Exception as e:
         print(f"Error fetching all rooms: {e}")
         return []
