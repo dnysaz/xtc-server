@@ -46,7 +46,8 @@ def init_tables():
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                        name TEXT UNIQUE, 
                        creator TEXT,
-                       password TEXT)''')
+                       password TEXT,
+                       description TEXT)''') # Added description column
     
     # Migrasi Kolom Password
     try:

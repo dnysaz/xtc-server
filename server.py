@@ -79,8 +79,20 @@ def list_rooms_route():
 @app.route('/create-room', methods=['POST'])
 def create_room_route():
     data = request.json
-    success = room.create_room(data.get('room'), data.get('user'), data.get('password', ''))
-    return jsonify({"status": "success" if success else "failed"}), 201
+    
+    # Ambil data dari JSON payload
+    room_name = data.get('room')
+    user = data.get('user')
+    password = data.get('password', '')
+    description = data.get('description', '') # Tambahkan field description
+
+    # Kirim ke modul room (Pastikan fungsi room.create_room sudah mendukung argumen ke-4)
+    success = room.create_room(room_name, user, password, description)
+    
+    if success:
+        return jsonify({"status": "success", "message": f"Room @{room_name} created."}), 201
+    else:
+        return jsonify({"status": "failed", "message": "Room already exists or invalid data."}), 400
 
 @app.route('/verify-room', methods=['POST'])
 def verify_room_route():
