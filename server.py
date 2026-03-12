@@ -6,8 +6,10 @@ from flask import Flask, request, jsonify
 import db
 import room
 import connection
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 PID_FILE = "server.pid"
 
 # Initialize database tables on startup
