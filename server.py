@@ -26,22 +26,24 @@ def index():
 # --- ROUTE BARU: LIST PUBLIC ROOMS ---
 @app.route('/rooms', methods=['GET'])
 def list_rooms_route():
-    """Mengambil semua room yang tidak memiliki password (Public)."""
+    """Mengambil semua room dengan status password untuk CLI dan Web."""
     try:
-        # Mengambil data dari modul room
+        # Mengambil data dari modul room (yang sudah kita update di db.py)
+        # Pastikan room.get_all_rooms() memanggil fungsi di db.py yang baru
         all_rooms_data = room.get_all_rooms() 
         
-        # Filter hanya yang password-nya kosong atau None
-        public_rooms = [
-            {"name": r['name']} 
-            for r in all_rooms_data 
-            if not r.get('password')
-        ]
+        # Jangan di-filter! Kirim semua, tapi gunakan flag has_password
+        rooms_to_send = []
+        for r in all_rooms_data:
+            rooms_to_send.append({
+                "name": r['name'],
+                "has_password": r.get('has_password', False)
+            })
         
         return jsonify({
             "status": "success",
-            "rooms": public_rooms,
-            "count": len(public_rooms)
+            "rooms": rooms_to_send,
+            "count": len(rooms_to_send)
         }), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
