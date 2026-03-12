@@ -39,20 +39,23 @@ def room_exists(name):
     finally:
         conn.close()
 
-def create_room(name, creator, password=""):
-    """Membuat room baru. Hanya men-hash jika password diberikan."""
+def create_room(name, creator, password="", description=""):
+    """Membuat room baru dengan deskripsi. Password opsional."""
     conn = get_db_connection()
-    # PENTING: Jika password kosong, simpan sebagai string kosong murni agar terbaca OPEN
+    
+    # Logic: Jika password kosong/hanya spasi, simpan "" agar statusnya OPEN
     hashed_pw = generate_password_hash(password) if (password and password.strip() != "") else ""
     
     try:
+        # PENTING: Query INSERT sekarang harus mencakup 4 kolom
         conn.execute(
-            "INSERT INTO rooms (name, creator, password) VALUES (?, ?, ?)", 
-            (name, creator, hashed_pw)
+            "INSERT INTO rooms (name, creator, password, description) VALUES (?, ?, ?, ?)", 
+            (name, creator, hashed_pw, description)
         )
         conn.commit()
         return True
     except sqlite3.IntegrityError:
+        # Terjadi jika nama room sudah ada (UNIQUE constraint)
         return False
     except Exception as e:
         print(f"Error creating room: {e}")
