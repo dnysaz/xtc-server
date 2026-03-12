@@ -126,6 +126,7 @@ def send_message_route():
 
     # Simpan pesan ke database
     success = connection.save_message(room_name, data.get('user'), content, user_pin)
+    
     return jsonify({"status": "success"}), 201
 
 @app.route('/messages/<room_name>', methods=['GET'])
