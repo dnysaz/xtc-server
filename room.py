@@ -13,7 +13,8 @@ def get_all_rooms():
         
         rooms = []
         for row in rows:
-            # Jika password ada isinya dan bukan string kosong, has_password = True
+            # Jika kolom password berisi string (hash), maka has_password = True
+            # Ini akan sinkron dengan logika Web UI (Sidebar)
             rooms.append({
                 "name": row['name'],
                 "has_password": True if row['password'] and row['password'].strip() != "" else False
@@ -39,9 +40,10 @@ def room_exists(name):
         conn.close()
 
 def create_room(name, creator, password=""):
-    """Membuat room baru dengan password yang di-hash."""
+    """Membuat room baru. Hanya men-hash jika password diberikan."""
     conn = get_db_connection()
-    hashed_pw = generate_password_hash(password) if password else ""
+    # PENTING: Jika password kosong, simpan sebagai string kosong murni agar terbaca OPEN
+    hashed_pw = generate_password_hash(password) if (password and password.strip() != "") else ""
     
     try:
         conn.execute(
@@ -62,14 +64,18 @@ def verify_password(name, password):
     """Memverifikasi password room (True jika publik atau password benar)."""
     conn = get_db_connection()
     try:
+        # Gunakan Row factory untuk akses kolom dengan nama
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT password FROM rooms WHERE name = ?", (name,))
         row = cursor.fetchone()
         
         if row:
             stored_pw = row['password']
-            if not stored_pw:
+            # Jika password di DB kosong, berarti room publik (Akses diizinkan)
+            if not stored_pw or stored_pw.strip() == "":
                 return True
+            # Jika ada hash, bandingkan dengan password input
             return check_password_hash(stored_pw, password)
         return False
     except Exception as e:
@@ -82,6 +88,7 @@ def delete_room(name, requester):
     """Menghapus room hanya jika requester adalah pemiliknya."""
     conn = get_db_connection()
     try:
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT creator FROM rooms WHERE name = ?", (name,))
         row = cursor.fetchone()
@@ -103,9 +110,11 @@ def is_password_protected(name):
     """Mengecek apakah room memiliki password (bukan string kosong)."""
     conn = get_db_connection()
     try:
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT password FROM rooms WHERE name = ?", (name,))
         row = cursor.fetchone()
+        # Room terproteksi jika kolom password tidak null dan tidak kosong
         return row is not None and row['password'] != ""
     except:
         return False
