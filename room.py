@@ -89,27 +89,26 @@ def verify_password(name, password):
     finally:
         conn.close()
 
-def delete_room(name, requester):
-    """Menghapus room hanya jika requester adalah pemiliknya."""
+def delete_room(name):
+    """
+    Menghapus room dan pesan di dalamnya secara permanen.
+    Validasi creator dilakukan di level server.py untuk fleksibilitas.
+    """
     conn = get_db_connection()
     try:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute("SELECT creator FROM rooms WHERE name = ?", (name,))
-        row = cursor.fetchone()
-        
-        if row and row['creator'] == requester:
-            with conn:
-                conn.execute("DELETE FROM messages WHERE room = ?", (name,))
-                conn.execute("DELETE FROM rooms WHERE name = ?", (name,))
-            return True
+        with conn:
+            # Hapus pesan terkait agar DB tetap bersih (Foreign Key simulation)
+            conn.execute("DELETE FROM messages WHERE room = ?", (name,))
+            # Hapus room
+            cursor = conn.execute("DELETE FROM rooms WHERE name = ?", (name,))
+            
+            # Jika rowcount > 0 berarti ada yang terhapus
+            return cursor.rowcount > 0
     except Exception as e:
-        print(f"Error deleting room: {e}")
+        print(f"Error executing delete in DB: {e}")
         return False
     finally:
         conn.close()
-    
-    return False
 
 def is_password_protected(name):
     """Mengecek apakah room memiliki password (bukan string kosong)."""

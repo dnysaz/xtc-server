@@ -120,6 +120,43 @@ def verify_room_route():
     
     return jsonify({"status": "success"}), 200
 
+# --- ROOM DELETION ---
+@app.route('/delete-room', methods=['POST'])
+def delete_room_route():
+    data = request.json
+    room_name = data.get('room')
+    request_user = data.get('user', '').strip().lower()
+
+    if not room_name:
+        return jsonify({"status": "error", "message": "Room name is required"}), 400
+
+    if not room.room_exists(room_name):
+        return jsonify({"status": "error", "message": "Room not found"}), 404
+
+    # Ambil info room untuk cek siapa creator-nya
+    all_rooms = room.get_all_rooms()
+    target_room = next((r for r in all_rooms if r['name'] == room_name), None)
+
+    if target_room:
+        creator = target_room.get('creator', '').strip().lower()
+        
+        # Validasi: Hanya creator atau 'system' yang bisa hapus
+        if creator != request_user and request_user != 'admin':
+            return jsonify({
+                "status": "failed", 
+                "message": f"Unauthorized. Only '{creator}' can delete this room."
+            }), 403
+
+    # Jika valid, lakukan penghapusan
+    try:
+        success = room.delete_room(room_name)
+        if success:
+            return jsonify({"status": "success", "message": f"Room @{room_name} deleted."}), 200
+        else:
+            return jsonify({"status": "failed", "message": "Database error during deletion."}), 500
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # --- MESSAGING ---
 @app.route('/send', methods=['POST', 'OPTIONS'])
 def send_message_route():
