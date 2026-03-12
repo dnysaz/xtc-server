@@ -65,15 +65,25 @@ def login_check():
 @app.route('/rooms', methods=['GET'])
 def list_rooms_route():
     try:
+        # Mengambil data lengkap (name, password, creator, description) dari room.py
         all_rooms_data = room.get_all_rooms() 
+        
         rooms_to_send = []
         for r in all_rooms_data:
             rooms_to_send.append({
-                "name": r['name'],
-                "has_password": r.get('has_password', False)
+                "name": r.get('name'),
+                "has_password": r.get('has_password', False),
+                "creator": r.get('creator', 'SYSTEM'),   
+                "description": r.get('description', '')  
             })
-        return jsonify({"status": "success", "rooms": rooms_to_send, "count": len(rooms_to_send)}), 200
+            
+        return jsonify({
+            "status": "success", 
+            "rooms": rooms_to_send, 
+            "count": len(rooms_to_send)
+        }), 200
     except Exception as e:
+        print(f"Error in list_rooms_route: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/create-room', methods=['POST'])

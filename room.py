@@ -3,21 +3,23 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 
 def get_all_rooms():
-    """Mengambil semua daftar room dari database dengan flag password."""
+    """Mengambil semua daftar room lengkap dengan creator dan description."""
     conn = get_db_connection()
     try:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT name, password FROM rooms")
+        # UPDATE: Tambahkan kolom creator dan description dalam SELECT
+        cursor.execute("SELECT name, password, creator, description FROM rooms")
         rows = cursor.fetchall()
         
         rooms = []
         for row in rows:
-            # Jika kolom password berisi string (hash), maka has_password = True
-            # Ini akan sinkron dengan logika Web UI (Sidebar)
+            # Jika kolom password berisi hash, maka has_password = True
             rooms.append({
                 "name": row['name'],
-                "has_password": True if row['password'] and row['password'].strip() != "" else False
+                "has_password": True if row['password'] and row['password'].strip() != "" else False,
+                "creator": row['creator'] if row['creator'] else "SYSTEM",
+                "description": row['description'] if row['description'] else "No description provided."
             })
         return rooms
     except Exception as e:
