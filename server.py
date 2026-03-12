@@ -83,17 +83,22 @@ def verify_room_route():
 
 @app.route('/send', methods=['POST'])
 def send_message_route():
-    data = request.get_json()
-    room_name = data.get('room')
-    password = data.get('password', '')
+    data = request.json
+    username = data.get('user')
+    user_pin = data.get('pin') # PIN dari Web atau CLI
     
-    if not room.room_exists(room_name):
-        return jsonify({"status": "failed", "message": "room_not_found"}), 404
+    # Cek apakah username ini terdaftar di tabel users
+    conn = db.get_db_connection()
+    user_record = conn.execute('SELECT pin FROM users WHERE username = ?', (username,)).fetchone()
+    
+    if user_record:
+        # Jika terdaftar, wajib cek PIN
+        if user_record['pin'] != str(user_pin):
+            return jsonify({"status": "failed", "message": "Identity mismatch. Wrong PIN."}), 403
 
-    if room.verify_password(room_name, password):
-        success = connection.save_message(room_name, data['user'], data['content'])
-        return jsonify({"status": "success" if success else "failed"}), 201
-    return jsonify({"status": "failed", "message": "Invalid password"}), 403
+    # Jika lolos (atau user belum terdaftar), simpan pesan
+    success = connection.save_message(username, data['content'], user_pin)
+    return jsonify({"status": "success"}), 201
 
 @app.route('/messages/<room_name>', methods=['GET'])
 def get_messages_route(room_name):

@@ -10,40 +10,52 @@ def get_db_connection():
     return conn
 
 def init_tables():
-    """Initializes the required tables and schema for XTC-CLI."""
+    """Initializes the required tables and schema for XtermChat."""
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Table to store chat messages
+    # 1. Tabel Users (Identity Lock)
+    # Menyimpan PIN untuk setiap handle/nama unik
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users 
+                      (username TEXT PRIMARY KEY, 
+                       pin TEXT NOT NULL)''')
+    
+    # 2. Tabel Messages
+    # Menambahkan kolom 'pin' untuk memverifikasi kepemilikan bubble chat
     cursor.execute('''CREATE TABLE IF NOT EXISTS messages 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                        room TEXT, 
                        sender TEXT, 
-                       content TEXT)''')
+                       pin TEXT,
+                       content TEXT,
+                       timestamp TEXT DEFAULT (datetime('now', 'localtime')))''')
     
-    # Menambahkan kolom timestamp ke tabel messages jika belum ada
+    # Migrasi Kolom (Failsafe jika DB sudah ada)
     try:
-        cursor.execute("ALTER TABLE messages ADD COLUMN timestamp TEXT")
+        cursor.execute("ALTER TABLE messages ADD COLUMN pin TEXT")
     except sqlite3.OperationalError:
-        pass
+        pass # Column already exists English: pin column added
+    
+    try:
+        cursor.execute("ALTER TABLE messages ADD COLUMN timestamp TEXT DEFAULT (datetime('now', 'localtime'))")
+    except sqlite3.OperationalError:
+        pass # Column already exists English: timestamp column added
 
-    # Table to manage rooms and ownership
+    # 3. Tabel Rooms
     cursor.execute('''CREATE TABLE IF NOT EXISTS rooms 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                        name TEXT UNIQUE, 
-                       creator TEXT)''')
+                       creator TEXT,
+                       password TEXT)''')
     
-    # Menambahkan kolom password jika belum ada
+    # Migrasi Kolom Password
     try:
         cursor.execute("ALTER TABLE rooms ADD COLUMN password TEXT")
     except sqlite3.OperationalError:
-        pass
+        pass # Column already exists English: password column added
     
     conn.commit()
     conn.close()
 
-# Memastikan tabel selalu terupdate saat aplikasi dijalankan
-if __name__ == '__main__':
-    init_tables()
-else:
-    init_tables()
+# Inisialisasi otomatis saat module diimport
+init_tables()
