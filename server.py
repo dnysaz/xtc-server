@@ -97,16 +97,24 @@ def create_room_route():
     user = data.get('user')
     password = data.get('password', '')
     description = data.get('description', '')
-    created_at = data.get('created_at', '')
+    created_at = data.get('created_at', 0)
+    creator_pin = data.get('pin', '')
 
-    # Kirim ke modul room (Pastikan fungsi room.create_room sudah mendukung argumen ke-4)
-    success = room.create_room(room_name, user, password, description, created_at)
+    # Kirim ke modul room (Sekarang mengirim 6 argumen termasuk creator_pin)
+    success = room.create_room(
+        room_name, 
+        user, 
+        password, 
+        description, 
+        created_at, 
+        creator_pin
+    )
     
     if success:
         return jsonify({"status": "success", "message": f"Room @{room_name} created."}), 201
     else:
-        return jsonify({"status": "failed", "message": "Room already exists or invalid data."}), 400
-
+        # Pesan error lebih spesifik untuk membantu debugging
+        return jsonify({"status": "failed", "message": "Room already exists or invalid data schema."}), 400
 @app.route('/verify-room', methods=['POST'])
 def verify_room_route():
     data = request.json
@@ -208,21 +216,29 @@ def get_messages_route(room_name):
 def purge_chat_route():
     data = request.json
     room_name = data.get('room')
-    requester = data.get('user')
+    requester_pin = str(data.get('pin', ''))
     
+    # 1. Cari data room di database
     all_rooms = room.get_all_rooms()
     target_room = next((r for r in all_rooms if r['name'] == room_name), None)
     
     if not target_room:
         return jsonify({"status": "error", "message": "Room not found"}), 404
-        
-    if target_room['creator'] != requester:
-        return jsonify({"status": "error", "message": "Access Denied: Only Creator can purge history"}), 403
 
-    if room.purge_messages(room_name):
-        return jsonify({"status": "success", "message": "Chat history purged successfully"}), 200
-    else:
-        return jsonify({"status": "error", "message": "Failed to purge database"}), 500
+    owner_pin = target_room.get('creator_pin')
+
+    if not owner_pin:
+        return jsonify({"status": "error", "message": "Room owner identity not set. Cannot purge."}), 403
+    
+    if str(owner_pin) != requester_pin:
+        print(f"[SECURITY] Unauthorized purge attempt on @{room_name} by PIN {requester_pin}")
+        return jsonify({"status": "error", "message": "Unauthorized: Hardware ID mismatch."}), 403
+
+    if room.purge_room_messages(room_name):
+        print(f"[SUCCESS] Room @{room_name} database has been purged by Owner.")
+        return jsonify({"status": "success", "message": "History cleared successfully."}), 200
+    
+    return jsonify({"status": "error", "message": "Database error during purge."}), 500
 
 # --- BACKGROUND PROCESS LOGIC ---
 def start_server():

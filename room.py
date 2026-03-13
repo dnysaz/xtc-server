@@ -42,18 +42,18 @@ def room_exists(name):
     finally:
         conn.close()
 
-def create_room(name, creator, password="", description="", created_at=""):
-    """Membuat room baru dengan deskripsi. Password opsional."""
+def create_room(name, creator, password="", description="", created_at=0, creator_pin=""):
+    """Membuat room baru dengan identitas unik creator_pin (Hardware ID)."""
     conn = get_db_connection()
     
     # Logic: Jika password kosong/hanya spasi, simpan "" agar statusnya OPEN
     hashed_pw = generate_password_hash(password) if (password and password.strip() != "") else ""
     
     try:
-        # PENTING: Query INSERT sekarang harus mencakup 5 kolom
+        # UPDATE: Query INSERT mencakup 6 kolom termasuk creator_pin
         conn.execute(
-            "INSERT INTO rooms (name, creator, password, description, created_at) VALUES (?, ?, ?, ?, ?)", 
-            (name, creator, hashed_pw, description, created_at)
+            "INSERT INTO rooms (name, creator, password, description, created_at, creator_pin) VALUES (?, ?, ?, ?, ?, ?)", 
+            (name, creator, hashed_pw, description, created_at, creator_pin)
         )
         conn.commit()
         return True
