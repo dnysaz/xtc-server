@@ -208,7 +208,7 @@ def get_messages_route(room_name):
 def purge_chat_route():
     data = request.json
     room_name = data.get('room')
-    requester = data.get('user') 
+    requester = data.get('user')
     
     all_rooms = room.get_all_rooms()
     target_room = next((r for r in all_rooms if r['name'] == room_name), None)
