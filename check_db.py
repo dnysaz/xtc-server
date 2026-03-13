@@ -49,8 +49,8 @@ def inspect_table(table_name):
                 "description": 15, 
                 "created_at": 18,     # Diperlebar untuk format tanggal
                 "timestamp": 18,      # Diperlebar untuk format waktu
-                "creator_pin": 15, 
-                "pin": 15,
+                "creator_pin": 38, 
+                "pin": 38,
                 "content": 25,
                 "username": 12
             }
