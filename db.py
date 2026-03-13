@@ -43,12 +43,12 @@ def init_tables():
 
     # 3. Tabel Rooms
     cursor.execute('''CREATE TABLE IF NOT EXISTS rooms 
-                      (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                       name TEXT UNIQUE, 
-                       creator TEXT,
-                       password TEXT,
-                       description TEXT,
-                       created_at TEXT)''') # Added description column
+                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                   name TEXT UNIQUE, 
+                   creator TEXT,
+                   password TEXT,
+                   description TEXT,
+                   created_at INTEGER)''')
     
     # Migrasi Kolom Password
     try:
