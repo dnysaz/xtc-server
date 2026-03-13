@@ -66,7 +66,7 @@ def login_check():
 @app.route('/rooms', methods=['GET'])
 def list_rooms_route():
     try:
-        # Mengambil data lengkap (name, password, creator, description) dari room.py
+        # room.get_all_rooms() sekarang sudah membawa data created_at
         all_rooms_data = room.get_all_rooms() 
         
         rooms_to_send = []
@@ -75,7 +75,8 @@ def list_rooms_route():
                 "name": r.get('name'),
                 "has_password": r.get('has_password', False),
                 "creator": r.get('creator', 'SYSTEM'),   
-                "description": r.get('description', '')  
+                "description": r.get('description', ''),
+                "created_at": r.get('created_at', 0)  
             })
             
         return jsonify({
