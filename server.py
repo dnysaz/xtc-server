@@ -204,6 +204,26 @@ def get_messages_route(room_name):
     msgs = connection.get_messages(room_name)
     return jsonify(msgs), 200
 
+@app.route('/purge-chat', methods=['POST'])
+def purge_chat_route():
+    data = request.json
+    room_name = data.get('room')
+    requester = data.get('user') 
+    
+    all_rooms = room.get_all_rooms()
+    target_room = next((r for r in all_rooms if r['name'] == room_name), None)
+    
+    if not target_room:
+        return jsonify({"status": "error", "message": "Room not found"}), 404
+        
+    if target_room['creator'] != requester:
+        return jsonify({"status": "error", "message": "Access Denied: Only Creator can purge history"}), 403
+
+    if room.purge_messages(room_name):
+        return jsonify({"status": "success", "message": "Chat history purged successfully"}), 200
+    else:
+        return jsonify({"status": "error", "message": "Failed to purge database"}), 500
+
 # --- BACKGROUND PROCESS LOGIC ---
 def start_server():
     if os.path.exists(PID_FILE):

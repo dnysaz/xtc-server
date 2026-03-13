@@ -111,6 +111,20 @@ def delete_room(name):
     finally:
         conn.close()
 
+
+def purge_messages(name):
+    """Menghapus semua pesan dalam room tertentu (Server-Side)."""
+    conn = get_db_connection()
+    try:
+        with conn:
+            conn.execute("DELETE FROM messages WHERE room = ?", (name,))
+        return True
+    except Exception as e:
+        print(f"Error purging messages: {e}")
+        return False
+    finally:
+        conn.close()
+        
 def is_password_protected(name):
     """Mengecek apakah room memiliki password (bukan string kosong)."""
     conn = get_db_connection()
