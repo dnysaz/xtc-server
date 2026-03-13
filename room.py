@@ -51,7 +51,7 @@ def create_room(name, creator, password="", description="", created_at=""):
     try:
         # PENTING: Query INSERT sekarang harus mencakup 5 kolom
         conn.execute(
-            "INSERT INTO rooms (name, creator, password, description) VALUES (?, ?, ?, ?, ?)", 
+            "INSERT INTO rooms (name, creator, password, description, created_at) VALUES (?, ?, ?, ?, ?)", 
             (name, creator, hashed_pw, description, created_at)
         )
         conn.commit()
