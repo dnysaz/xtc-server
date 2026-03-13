@@ -216,7 +216,9 @@ def get_messages_route(room_name):
 def purge_chat_route():
     data = request.json
     room_name = data.get('room')
-    requester_pin = str(data.get('pin', ''))
+    
+    # Tambahkan .strip().lower() untuk menghindari perbedaan format
+    requester_pin = str(data.get('pin', '')).strip().lower()
     
     # 1. Cari data room di database
     all_rooms = room.get_all_rooms()
@@ -225,16 +227,20 @@ def purge_chat_route():
     if not target_room:
         return jsonify({"status": "error", "message": "Room not found"}), 404
 
-    owner_pin = target_room.get('creator_pin')
+    # Ambil owner_pin dan bersihkan juga formatnya
+    owner_pin = str(target_room.get('creator_pin', '')).strip().lower()
 
-    if not owner_pin:
+    # Validasi jika PIN di database kosong (NULL)
+    if not owner_pin or owner_pin == "none" or owner_pin == "":
         return jsonify({"status": "error", "message": "Room owner identity not set. Cannot purge."}), 403
     
-    if str(owner_pin) != requester_pin:
+    # Bandingkan PIN yang sudah dibersihkan
+    if owner_pin != requester_pin:
         print(f"[SECURITY] Unauthorized purge attempt on @{room_name} by PIN {requester_pin}")
         return jsonify({"status": "error", "message": "Unauthorized: Hardware ID mismatch."}), 403
 
-    if room.purge_room_messages(room_name):
+    # Eksekusi penghapusan
+    if room.purge_messages(room_name):
         print(f"[SUCCESS] Room @{room_name} database has been purged by Owner.")
         return jsonify({"status": "success", "message": "History cleared successfully."}), 200
     
