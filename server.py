@@ -2,6 +2,7 @@ import sys
 import os
 import signal
 import subprocess
+from time import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import db
@@ -94,10 +95,11 @@ def create_room_route():
     room_name = data.get('room')
     user = data.get('user')
     password = data.get('password', '')
-    description = data.get('description', '') # Tambahkan field description
+    description = data.get('description', '')
+    created_at = data.get('created_at', '')
 
     # Kirim ke modul room (Pastikan fungsi room.create_room sudah mendukung argumen ke-4)
-    success = room.create_room(room_name, user, password, description)
+    success = room.create_room(room_name, user, password, description, created_at)
     
     if success:
         return jsonify({"status": "success", "message": f"Room @{room_name} created."}), 201

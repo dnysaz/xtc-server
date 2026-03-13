@@ -47,7 +47,8 @@ def init_tables():
                        name TEXT UNIQUE, 
                        creator TEXT,
                        password TEXT,
-                       description TEXT)''') # Added description column
+                       description TEXT,
+                       created_at TEXT)''') # Added description column
     
     # Migrasi Kolom Password
     try:

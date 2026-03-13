@@ -41,7 +41,7 @@ def room_exists(name):
     finally:
         conn.close()
 
-def create_room(name, creator, password="", description=""):
+def create_room(name, creator, password="", description="", created_at=""):
     """Membuat room baru dengan deskripsi. Password opsional."""
     conn = get_db_connection()
     
@@ -49,10 +49,10 @@ def create_room(name, creator, password="", description=""):
     hashed_pw = generate_password_hash(password) if (password and password.strip() != "") else ""
     
     try:
-        # PENTING: Query INSERT sekarang harus mencakup 4 kolom
+        # PENTING: Query INSERT sekarang harus mencakup 5 kolom
         conn.execute(
-            "INSERT INTO rooms (name, creator, password, description) VALUES (?, ?, ?, ?)", 
-            (name, creator, hashed_pw, description)
+            "INSERT INTO rooms (name, creator, password, description) VALUES (?, ?, ?, ?, ?)", 
+            (name, creator, hashed_pw, description, created_at)
         )
         conn.commit()
         return True
