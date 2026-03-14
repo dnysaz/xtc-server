@@ -422,6 +422,93 @@ def bot_list():
         conn.close()
 
 
+@app.route('/bot/start', methods=['POST'])
+def bot_start_route():
+    """
+    Spawn bot_runner.py di background VPS.
+    Dipanggil dari Mac setelah /bot/register berhasil.
+    bot_runner.py harus ada di folder yang sama dengan server.py.
+    """
+    data   = request.json or {}
+    bot_id = data.get('bot_id')
+    pin    = str(data.get('pin', '')).strip()
+
+    if not bot_id or not pin:
+        return jsonify({"status": "error", "message": "bot_id and pin required"}), 400
+
+    # Validasi PIN — hanya owner bot yang bisa start
+    conn = db.get_db_connection()
+    try:
+        row = conn.execute("SELECT pin, name, room FROM bots WHERE id = ?", (bot_id,)).fetchone()
+        if not row:
+            return jsonify({"status": "error", "message": "Bot not found"}), 404
+        if row['pin'] != pin:
+            return jsonify({"status": "error", "message": "Unauthorized"}), 403
+
+        bot_name = row['name']
+        bot_room = row['room']
+    finally:
+        conn.close()
+
+    # Cari bot_runner.py di folder yang sama dengan server.py
+    server_dir = os.path.dirname(os.path.realpath(__file__))
+    runner     = os.path.join(server_dir, "bot_runner.py")
+
+    if not os.path.exists(runner):
+        return jsonify({
+            "status":  "error",
+            "message": f"bot_runner.py not found in {server_dir}"
+        }), 500
+
+    # Cek apakah sudah ada PID file (bot sudah berjalan)
+    pid_file = os.path.expanduser(f"~/.xtc_bot_{bot_id}.pid")
+    if os.path.exists(pid_file):
+        with open(pid_file) as f:
+            old_pid = f.read().strip()
+        try:
+            os.kill(int(old_pid), 0)
+            # Process masih hidup
+            return jsonify({"status": "ok", "pid": int(old_pid), "message": "Already running"}), 200
+        except (ProcessLookupError, ValueError):
+            # Process sudah mati, hapus PID file lama
+            os.remove(pid_file)
+
+    log_file = os.path.expanduser(f"~/.xtc_bot_{bot_id}.log")
+
+    # Ambil URL server dari config atau construct dari request
+    server_url = request.host_url.rstrip("/")
+
+    try:
+        with open(log_file, "a") as log_f:
+            proc = subprocess.Popen(
+                [sys.executable, runner,
+                 "--bot-id",   str(bot_id),
+                 "--server",   server_url,
+                 "--room",     bot_room,
+                 "--bot-name", bot_name,
+                 "--pin",      pin],
+                stdout=log_f,
+                stderr=log_f,
+                preexec_fn=os.setpgrp,
+            )
+
+        with open(pid_file, "w") as f:
+            f.write(str(proc.pid))
+
+        # Update status di db
+        conn = db.get_db_connection()
+        conn.execute("UPDATE bots SET status = 'active' WHERE id = ?", (bot_id,))
+        conn.commit()
+        conn.close()
+
+        print(f"[BOT] Started bot #{bot_id} '{bot_name}' (PID: {proc.pid})")
+        return jsonify({"status": "success", "pid": proc.pid}), 200
+
+    except Exception as e:
+        print(f"[ERROR] bot_start_route: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route('/bot/stop', methods=['POST'])
 def bot_stop_route():
     """Tandai bot sebagai stopped di database."""
