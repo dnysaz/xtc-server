@@ -509,6 +509,63 @@ def bot_start_route():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route('/bot/kill', methods=['POST'])
+def bot_kill_route():
+    """
+    Kill bot process di VPS dan tandai sebagai stopped.
+    Dipanggil dari Mac via 'xtc stop:bot <id>'.
+    PID file ada di VPS, jadi server yang handle kill-nya.
+    """
+    data   = request.json or {}
+    bot_id = data.get('bot_id')
+    pin    = str(data.get('pin', '')).strip()
+
+    if not bot_id or not pin:
+        return jsonify({"status": "error", "message": "bot_id and pin required"}), 400
+
+    # Validasi PIN
+    conn = db.get_db_connection()
+    try:
+        row = conn.execute("SELECT pin, name, status FROM bots WHERE id = ?", (bot_id,)).fetchone()
+        if not row:
+            return jsonify({"status": "error", "message": "Bot not found"}), 404
+        if row['pin'] != pin:
+            return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        if row['status'] == 'stopped':
+            return jsonify({"status": "ok", "message": "Already stopped"}), 409
+    finally:
+        conn.close()
+
+    # Baca PID file di VPS
+    pid_file = os.path.expanduser(f"~/.xtc_bot_{bot_id}.pid")
+    killed_pid = None
+
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file) as f:
+                pid = int(f.read().strip())
+            os.kill(pid, signal.SIGTERM)
+            killed_pid = pid
+            os.remove(pid_file)
+            print(f"[BOT] Killed bot #{bot_id} (PID: {pid})")
+        except (ProcessLookupError, ValueError):
+            # Process sudah mati, bersihkan file
+            os.remove(pid_file)
+            print(f"[BOT] Bot #{bot_id} was already dead, cleaned up PID file.")
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+    else:
+        print(f"[BOT] No PID file for bot #{bot_id}, marking as stopped anyway.")
+
+    # Update status di db
+    conn = db.get_db_connection()
+    conn.execute("UPDATE bots SET status = 'stopped' WHERE id = ?", (bot_id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"status": "success", "pid": killed_pid}), 200
+
+
 @app.route('/bot/stop', methods=['POST'])
 def bot_stop_route():
     """Tandai bot sebagai stopped di database."""
