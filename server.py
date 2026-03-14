@@ -326,6 +326,47 @@ def purge_chat_route():
 
 # ─── BOT MANAGEMENT ───────────────────────────────────────────────────────────
 
+@app.route('/bot/delete', methods=['POST'])
+def bot_delete_route():
+    """
+    Hapus bot dari database secara permanen.
+    Hanya bisa dilakukan jika bot sudah stopped.
+    Validasi: PIN harus cocok dengan owner bot.
+    """
+    data   = request.json or {}
+    bot_id = data.get('bot_id')
+    pin    = str(data.get('pin', '')).strip()
+
+    if not bot_id or not pin:
+        return jsonify({"status": "error", "message": "bot_id and pin required"}), 400
+
+    conn = db.get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT pin, name, status FROM bots WHERE id = ?", (bot_id,)
+        ).fetchone()
+
+        if not row:
+            return jsonify({"status": "error", "message": "Bot not found"}), 404
+        if row['pin'] != pin:
+            return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        if row['status'] == 'active':
+            return jsonify({
+                "status": "error",
+                "message": "Bot is still active. Stop it first."
+            }), 409
+
+        conn.execute("DELETE FROM bots WHERE id = ?", (bot_id,))
+        conn.commit()
+        print(f"[BOT] Deleted bot #{bot_id} '{row['name']}'")
+        return jsonify({"status": "success", "message": f"Bot #{bot_id} deleted."}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        conn.close()
+
+
 @app.route('/bot/register', methods=['POST'])
 def bot_register():
     """Daftarkan bot baru dan simpan konfigurasinya ke tabel bots."""
