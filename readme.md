@@ -1,8 +1,49 @@
 # ⬤ XTERMCHAT
 ### For Those Who Speak Terminal.
 
-XtermChat is a lightweight, high-performance client-server communication system built for the terminal. No GUIs, no bloat—just pure command-line interaction designed for speed, privacy, and minimalist aesthetics.
+XtermChat is a lightweight self-hosted chat system built for the terminal. No GUIs, no bloat, no third-party servers — just pure command-line communication that runs on your own infrastructure.
 
+> Your server. Your data. Your rules.
+
+---
+
+## 🚀 QUICK START
+
+### Server (Your VPS / Ubuntu)
+
+```bash
+# 1. Clone the server repo
+git clone https://github.com/dnysaz/xtc-server.git
+cd xtc-server
+
+# 2. Install dependencies
+pip install flask flask-cors
+
+# 3. Open port 8080
+sudo ufw allow 8080
+
+# 4. Start the server
+python3 server.py start
+# [*] Server started in background (PID: XXXXX)
+```
+
+Done. Your private chat server is running. ✅
+
+---
+
+### Client (Your Mac / Linux)
+
+```bash
+# 1. Clone the client repo
+git clone https://github.com/dnysaz/xtc-client.git
+cd xtc-client
+
+# 2. Install
+make install
+
+# 3. Run
+xtc
+```
 
 ---
 
@@ -10,175 +51,220 @@ XtermChat is a lightweight, high-performance client-server communication system 
 
 | Command | Description |
 |---------|-------------|
-| `connect` | Sync with central gateway. Pairs your local client with the target Ubuntu server IP address. |
-| `disconnect` | Clear configuration. Purges the current server IP from your local configuration (Auto-wipe). |
-| `status` | Connection diagnostic. Real-time check for gateway availability, latency, and server version. |
-| `list:rooms` | Discovery. Lists all active Public Rooms that can be accessed without a password. |
-| `create:room` | Deploy. Spawns a new chat room on the server. Optional passwords can be set for private access. |
-| `delete:room` | Incinerate. Permanently deletes a room and securely wipes all associated message logs. |
-| `start:chat` | Establish session. Launches the interactive terminal UI with emoji support and session encryption. |
+| `connect` | Pair your client with a server. Provide the server IP and port. |
+| `disconnect` | Clear current server configuration from local client. |
+| `status` | Check connection status and server availability. |
+| `list:rooms` | List all public rooms on the connected server. |
+| `create:room` | Create a new room. Optionally set a password for private access. |
+| `delete:room` | Permanently delete a room. Only the room creator can do this. |
+| `start:chat` | Open interactive terminal chat UI. |
 
----
-
-## INSTALLATION
-
-### Prerequisites
-- Python 3.6 or higher
-- pip package manager
-- Ubuntu Server (for hosting) / macOS or Linux (for client)
-
-### Quick Install
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/xtermchat.git
-cd xtermchat
-
-# Install dependencies (minimal, runs on system Python)
-pip install flask prompt-toolkit requests
-
-# Make the CLI executable
-chmod +x xtc
-
-# Optional: Add to PATH
-export PATH=$PATH:$(pwd)
-```
 ---
 
 ## USAGE EXAMPLES
 
-Run these commands from your Mac/Linux terminal:
+### 1. Connect to Your Server
 
-### 1. Networking & Sync
 ```bash
-# Connect to your remote server (example ip)
+# Connect client to your VPS
 xtc connect @123.123.123.123:8080
 
-# Run a diagnostic check
+# Check connection
 xtc status
 
-# Terminate connection & wipe local config
+# Disconnect
 xtc disconnect @123.123.123.123:8080
 ```
 
 ### 2. Room Management
+
 ```bash
-# Browse available public rooms
+# List all public rooms
 xtc list:rooms
 
-# Deploy a public room
+# Create a public room
 xtc create:room @lobby
 
-# Deploy a secured room with a password
+# Create a password-protected private room
 xtc create:room @private P@ssw0rd123
-```
 
-### 3. Encrypted Communication
-```bash
-# Enter an interactive chat session
-xtc start:chat @lobby
-
-# Remove a room (Only the creator has permission)
+# Delete a room (creator only)
 xtc delete:room @lobby
 ```
 
-### 4. In-Chat Shortcuts
-Once inside a chat session (start:chat), you can use emoji shortcuts that automatically convert to their corresponding symbols:
+### 3. Start Chatting
 
-Shortcut	Emoji
-:fire	     🔥
-:nice	     👍
-:cool	     😎
-:rocket	     🚀
-:laugh	     😂
-:warn	     ⚠️
-:check	     ✅
-:heart	     ❤️
-:star	     ⭐
-:ghost	     👻
-:e	     View all available emoji shortcuts
+```bash
+# Join a public room
+xtc start:chat @lobby
+
+# Join a private room
+xtc start:chat @private
+# You will be prompted for the room password
+```
+
+### 4. In-Chat Controls
+
+Once inside `start:chat`, use these keyboard shortcuts:
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Send message |
+| `Tab` | Switch focus between chat and input |
+| `PageUp / PageDown` | Scroll chat history |
+| `↑ ↓` | Scroll line by line (in chat mode) |
+| `Home / End` | Jump to top / bottom of chat |
+| `Shift + ←→` | Select text character by character |
+| `Ctrl + Shift + ←→` | Select text word by word |
+| `Ctrl + C` | Copy selected text to clipboard |
+| `Ctrl + L` | Open link under cursor in browser |
+| `Ctrl + X` | Exit chat |
+| `:clear` | Clear local chat display |
+| `:purge` | Delete all room history from server (creator only) |
+| `:e` | Show all emoji shortcuts |
+| `:q` | Quit chat |
+
+### 5. Emoji Shortcuts
+
+Type these inside a message and they auto-convert on send:
+
+| Shortcut | Emoji | Shortcut | Emoji |
+|----------|-------|----------|-------|
+| `:fire` | 🔥 | `:check` | ✅ |
+| `:rocket` | 🚀 | `:warn` | ⚠️ |
+| `:nice` | 👍 | `:heart` | ❤️ |
+| `:cool` | 😎 | `:star` | ⭐ |
+| `:laugh` | 😂 | `:ghost` | 👻 |
+| `:robot` | 🤖 | `:bug` | 🪲 |
+| `:coffee` | ☕ | `:beer` | 🍺 |
+
+Type `:e` inside chat to view all available shortcuts.
 
 ---
 
 ## 🛠 TECH STACK
 
 ```
-Backend:    Python Flask
-Database:   SQLite3 (Persistent Storage)
-Interface:  prompt_toolkit (Rich Terminal UI)
-Protocol:   REST API via JSON Payloads
-Encryption: Session-based encryption
-Port:       8080 (default)
+Backend:    Python + Flask
+Database:   SQLite3 (local, no external DB required)
+Interface:  prompt_toolkit (Terminal UI)
+Protocol:   REST API over HTTP/HTTPS
+Transport:  JSON payloads
+Port:       8080 (default, configurable)
 ```
 
 ---
 
-## ⚠️ SECURITY POLICIES
+## ⚠️ SECURITY
 
-### 🔒 Authentication
-- **Anti-Brute Force:** 3 failed password attempts during `start:chat` triggers a Security Alert
-- **Auto-Wipe:** Failed attempts result in immediate local configuration deletion
-- **Session Encryption:** All messages are encrypted during transmission
+### Authentication
+- Each user is identified by **username + hardware PIN** (device UUID)
+- PIN is bound to the device — the same username cannot be used from a different machine
+- Room passwords are validated server-side on every connection
 
-### 🛡️ Best Practices
-- **Dependency-Free:** Built to run directly on system Python - no venv required
-- **Low Footprint:** Minimal resource usage, perfect for low-spec servers
-- **Auto-Cleanup:** Messages are securely wiped when rooms are deleted
-- **IP Validation:** Server connections require valid IP formatting with @ prefix
+### Room Security
+- Public rooms: open access, no password required
+- Private rooms: password required to join
+- **Only the room creator** can delete a room or purge its history
+- All permission checks are enforced on the server, not the client
 
-### 🔐 Room Security
-- Public rooms: Open access, no password required
-- Private rooms: Password-protected access
-- Creator privileges: Only room creators can delete rooms
-- Message persistence: SQLite with secure deletion
+### Network
+- Default setup uses **HTTP** — sufficient for private/internal networks
+- For production or public-facing deployments, **HTTPS is strongly recommended**
+- With HTTPS, all traffic (messages, passwords, PINs) is encrypted in transit
+- No client code changes needed to switch from HTTP to HTTPS
+
+### Recommended HTTPS setup (with Caddy):
+```bash
+# Auto SSL with Let's Encrypt — replace with your domain
+caddy reverse-proxy --from yourdomain.com --to localhost:8080
+```
 
 ---
 
 ## ❗ TROUBLESHOOTING
 
-### Common Issues
-
-**Issue: Connection refused**
+**Connection refused**
 ```bash
-# Check if server is running
+# Check server is running
 xtc status
 
-# Ensure firewall allows port 8080
+# Make sure port 8080 is open on your VPS
 sudo ufw allow 8080
+sudo ufw status
 ```
 
-**Issue: Room creation failed**
+**Wrong password / access denied**
+```bash
+# Room passwords are case-sensitive
+# Re-enter password when prompted during start:chat
+```
+
+**Room creation failed**
 ```bash
 # Check connection first
 xtc status
 
-# Verify room name format (must start with @)
-xtc create:room @validroomname
+# Room name must start with @
+xtc create:room @roomname
+```
 
+**Server already running**
+```bash
+# Stop the server first
+python3 server.py stop
+
+# Then restart
+python3 server.py start
 ```
 
 ---
 
-## 🤝 Contributing
-Contributions are welcome! Feel free to:
-- Report bugs
-- Suggest features
+## 📋 REQUIREMENTS
+
+**Server**
+- Python 3.6+
+- pip
+- Ubuntu / Debian Linux (recommended)
+- Open port 8080
+
+**Client**
+- Python 3.6+
+- macOS or Linux
+- `make` (for install)
+
+---
+
+## 🤝 CONTRIBUTING
+
+Contributions are welcome:
+- Report bugs via Issues
 - Submit pull requests
+- Suggest features
 - Improve documentation
 
 ---
 
-## 📄 License
-MIT License - feel free to use, modify, and distribute.
+## 📄 LICENSE
+
+MIT License — free to use, modify, and distribute.
 
 ---
 
-## 🌟 Why XtermChat?
-- ✅ **No bloat** - Just pure terminal communication
-- ✅ **Privacy-focused** - Self-hosted, no third parties
-- ✅ **Lightweight** - Runs on Python, minimal dependencies
-- ✅ **Fast** - REST API with JSON, no overhead
-- ✅ **Secure** - Session encryption, auto-wipe on threats
-- ✅ **Minimalist** - For developers who love the terminal
+## 🌟 WHY XTERMCHAT?
+
+| | XtermChat | Matrix/Synapse | Mattermost | Slack/Discord |
+|--|-----------|---------------|------------|---------------|
+| Self-hosted | ✅ | ✅ | ✅ | ❌ |
+| Open source | ✅ | ✅ | ⚠️ partial | ❌ |
+| Setup time | ~5 minutes | ~2-3 hours | ~30 minutes | instant |
+| RAM usage | ~30MB | ~1-2GB | ~300MB | — |
+| Terminal-first | ✅ | ❌ | ❌ | ❌ |
+| Data ownership | ✅ | ✅ | ✅ | ❌ |
+| No account required | ✅ | ❌ | ❌ | ❌ |
+
+Built for developers and sysadmins who want a private, no-nonsense communication tool that runs on infrastructure they control.
 
 ---
-*Version 1.0.0 | Last Updated: March 2026*
+
+*Version 1.0.0 — March 2026*
