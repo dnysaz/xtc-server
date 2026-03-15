@@ -463,6 +463,38 @@ def bot_list():
         conn.close()
 
 
+@app.route('/bot/list/all', methods=['GET'])
+def bot_list_all():
+    """List semua bot di server — tanpa filter PIN.
+    Dipakai oleh web admin untuk tampilkan bot dari semua source (CLI + web).
+    """
+    conn = db.get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM bots ORDER BY id DESC"
+        ).fetchall()
+
+        bots = []
+        for row in rows:
+            tasks = json.loads(row['tasks']) if row['tasks'] else []
+            bots.append({
+                "id":         row['id'],
+                "name":       row['name'],
+                "room":       row['room'],
+                "host":       row['host'],
+                "status":     row['status'],
+                "tasks":      tasks,
+                "created_at": row['created_at'],
+            })
+
+        return jsonify({"status": "success", "bots": bots}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        conn.close()
+
+
+
 @app.route('/bot/start', methods=['POST'])
 def bot_start_route():
     """
@@ -638,6 +670,155 @@ def bot_stop_route():
         return jsonify({"status": "error", "message": str(e)}), 500
     finally:
         conn.close()
+
+
+@app.route('/bot/admin/kill', methods=['POST'])
+def bot_admin_kill():
+    """
+    Stop bot dari web admin — validasi pakai user PIN, bukan bot PIN.
+    Memungkinkan web admin manage bot yang dibuat dari CLI.
+    """
+    data   = request.json or {}
+    bot_id = data.get('bot_id')
+    pin    = str(data.get('pin', '')).strip()
+
+    if not bot_id or not pin:
+        return jsonify({"status": "error", "message": "bot_id and pin required"}), 400
+
+    # Validasi: user harus terdaftar di server (valid login)
+    conn = db.get_db_connection()
+    try:
+        user_row = conn.execute("SELECT pin FROM users WHERE pin = ?", (pin,)).fetchone()
+        if not user_row:
+            return jsonify({"status": "error", "message": "Unauthorized: invalid user PIN"}), 403
+
+        row = conn.execute("SELECT name, status FROM bots WHERE id = ?", (bot_id,)).fetchone()
+        if not row:
+            return jsonify({"status": "error", "message": "Bot not found"}), 404
+        if row['status'] == 'stopped':
+            return jsonify({"status": "ok", "message": "Already stopped"}), 409
+    finally:
+        conn.close()
+
+    # Kill process
+    pid_file  = os.path.expanduser(f"~/.xtc_bot_{bot_id}.pid")
+    killed_pid = None
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file) as f:
+                pid = int(f.read().strip())
+            os.kill(pid, signal.SIGTERM)
+            killed_pid = pid
+            os.remove(pid_file)
+        except (ProcessLookupError, ValueError):
+            if os.path.exists(pid_file):
+                os.remove(pid_file)
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    conn = db.get_db_connection()
+    conn.execute("UPDATE bots SET status = 'stopped' WHERE id = ?", (bot_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success", "pid": killed_pid}), 200
+
+
+@app.route('/bot/admin/start', methods=['POST'])
+def bot_admin_start():
+    """Start bot dari web admin — validasi pakai user PIN."""
+    data   = request.json or {}
+    bot_id = data.get('bot_id')
+    pin    = str(data.get('pin', '')).strip()
+
+    if not bot_id or not pin:
+        return jsonify({"status": "error", "message": "bot_id and pin required"}), 400
+
+    conn = db.get_db_connection()
+    try:
+        user_row = conn.execute("SELECT pin FROM users WHERE pin = ?", (pin,)).fetchone()
+        if not user_row:
+            return jsonify({"status": "error", "message": "Unauthorized: invalid user PIN"}), 403
+
+        row = conn.execute("SELECT pin as bot_pin, name, room FROM bots WHERE id = ?", (bot_id,)).fetchone()
+        if not row:
+            return jsonify({"status": "error", "message": "Bot not found"}), 404
+
+        bot_name = row['name']
+        bot_room = row['room']
+        bot_pin  = row['bot_pin']
+    finally:
+        conn.close()
+
+    server_dir = os.path.dirname(os.path.realpath(__file__))
+    runner     = os.path.join(server_dir, "bot_runner.py")
+    if not os.path.exists(runner):
+        return jsonify({"status": "error", "message": f"bot_runner.py not found in {server_dir}"}), 500
+
+    pid_file = os.path.expanduser(f"~/.xtc_bot_{bot_id}.pid")
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file) as f:
+                old_pid = int(f.read().strip())
+            os.kill(old_pid, 0)
+            return jsonify({"status": "ok", "pid": old_pid, "message": "Already running"}), 200
+        except (ProcessLookupError, ValueError):
+            os.remove(pid_file)
+
+    server_url = request.host_url.rstrip("/")
+    log_file   = os.path.expanduser(f"~/.xtc_bot_{bot_id}.log")
+    try:
+        with open(log_file, "a") as log_f:
+            proc = subprocess.Popen(
+                [sys.executable, runner,
+                 "--bot-id",   str(bot_id),
+                 "--server",   server_url,
+                 "--room",     bot_room,
+                 "--bot-name", bot_name,
+                 "--pin",      bot_pin],
+                stdout=log_f, stderr=log_f, preexec_fn=os.setpgrp,
+            )
+        with open(pid_file, "w") as f:
+            f.write(str(proc.pid))
+
+        conn = db.get_db_connection()
+        conn.execute("UPDATE bots SET status = 'active' WHERE id = ?", (bot_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "pid": proc.pid}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/bot/admin/delete', methods=['POST'])
+def bot_admin_delete():
+    """Delete bot dari web admin — validasi pakai user PIN."""
+    data   = request.json or {}
+    bot_id = data.get('bot_id')
+    pin    = str(data.get('pin', '')).strip()
+
+    if not bot_id or not pin:
+        return jsonify({"status": "error", "message": "bot_id and pin required"}), 400
+
+    conn = db.get_db_connection()
+    try:
+        user_row = conn.execute("SELECT pin FROM users WHERE pin = ?", (pin,)).fetchone()
+        if not user_row:
+            return jsonify({"status": "error", "message": "Unauthorized: invalid user PIN"}), 403
+
+        row = conn.execute("SELECT name, status FROM bots WHERE id = ?", (bot_id,)).fetchone()
+        if not row:
+            return jsonify({"status": "error", "message": "Bot not found"}), 404
+        if row['status'] == 'active':
+            return jsonify({"status": "error", "message": "Bot is still active. Stop it first."}), 409
+
+        conn.execute("DELETE FROM bots WHERE id = ?", (bot_id,))
+        conn.commit()
+        return jsonify({"status": "success"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        conn.close()
+
 
 
 # ─── BACKGROUND PROCESS ────────────────────────────────────────────────────────
