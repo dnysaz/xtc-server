@@ -480,6 +480,7 @@ def bot_list_all():
             bots.append({
                 "id":         row['id'],
                 "name":       row['name'],
+                "pin":        row['pin'],
                 "room":       row['room'],
                 "host":       row['host'],
                 "status":     row['status'],
